@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Survey Link Generator - Game of Thrones</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Cinzel', serif;
+      background: url('https://wallpapercave.com/wp/wp6748011.jpg') no-repeat center center fixed;
+      background-size: cover;
+      color: #f5f5f5;
+      animation: fadeIn 2s ease-in-out;
+    }
+    .container {
+      max-width: 1000px;
+      margin: 30px auto;
+      background: rgba(0, 0, 0, 0.75);
+      padding: 20px 30px;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.8);
+      animation: slideDown 1.5s ease;
+      position: relative;
+    }
+    h1 {
+      text-align: center;
+      font-size: 38px;
+      margin: 20px 0 10px;
+      color: #d4af37; /* gold */
+      text-shadow: 2px 2px 5px black;
+      animation: glow 2s infinite alternate;
+    }
+    .dragon {
+      width: 120px;
+      display: block;
+      margin: 0 auto;
+      animation: float 4s ease-in-out infinite;
+    }
+    .button-group { margin-top: 10px; text-align: center; }
+    .btn {
+      padding: 10px 15px;
+      margin: 5px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      font-family: 'Cinzel', serif;
+      transition: transform 0.2s ease, box-shadow 0.3s ease;
+    }
+    .btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 12px rgba(212,175,55,0.8);
+    }
+    .btn-primary { background: #2b2d42; color: #f5f5f5; }
+    .btn-warning { background: #ef233c; color: #fff; }
+    .btn-success { background: #006400; color: #fff; }
+    .table-container { margin-top: 20px; overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: rgba(0,0,0,0.6);
+      border-radius: 8px;
+      overflow: hidden;
+      animation: fadeIn 2s ease;
+    }
+    th, td {
+      border: 1px solid #444;
+      padding: 10px;
+      text-align: center;
+    }
+    th {
+      background: #2b2d42;
+      color: #d4af37;
+      font-size: 18px;
+    }
+    tr:hover {
+      background: rgba(255,255,255,0.1);
+      transition: 0.3s;
+    }
+    .status {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 5px;
+      text-align: center;
+    }
+
+    /* Animations */
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes slideDown {
+      from { transform: translateY(-50px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    @keyframes glow {
+      from { text-shadow: 0 0 10px #d4af37, 0 0 20px #d4af37; }
+      to { text-shadow: 0 0 20px #ffcc00, 0 0 40px #ffcc00; }
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <!-- Dragon Image -->
+    <img src="https://upload.wikimedia.org/wikipedia/en/6/6a/House_Targaryen_Emblem.png" alt="Dragon" class="dragon">
+    
+    <h1>Survey Link Generator</h1>
+    
+    <!-- Upload Section -->
+    <div class="file-section" style="text-align:center;">
+      <h3>Upload Excel File</h3>
+      <input type="file" id="fileInput" accept=".xlsx, .xls" style="margin:10px;">
+      <div class="button-group">
+        <button class="btn btn-primary" id="generateBtn" onclick="processFile()" disabled>Generate Links</button>
+        <button class="btn btn-warning" onclick="clearData()">Clear All</button>
+      </div>
+    </div>
+
+    <!-- Status -->
+    <div id="status" class="status" style="display:none;"></div>
+
+    <!-- Action Buttons -->
+    <div class="button-group">
+      <button class="btn btn-success" id="copyAllBtn" onclick="copyAllLinks()" disabled>Copy All Links</button>
+      <button class="btn btn-primary" id="exportBtn" onclick="exportToCSV()" disabled>Export to CSV</button>
+    </div>
+
+    <!-- Table -->
+    <div class="table-container">
+      <table id="linkTable">
+        <thead>
+          <tr>
+            <th>Receipt No.</th>
+            <th>Sales Type</th>
+            <th>Link</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- XLSX Library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  
+  <script>
+    let currentData = [];
+    const storeID = "91KDIPL879-01"; // Store Code
+
+    function convertExcelDate(serial) {
+      const date = new Date((serial - 25569) * 86400 * 1000);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+    }
+
+    function convertExcelTime(serial) {
+      const totalSeconds = Math.round(serial * 24 * 60 * 60);
+      const hours = String(Math.floor(totalSeconds / 3600)).padStart(2,'0');
+      const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2,'0');
+      const seconds = String(totalSeconds % 60).padStart(2,'0');
+      return `${hours}:${minutes}:${seconds}`;
+    }
+
+    function generateSurveyLink(row) {
+      const receiptNo = row['Receipt No.']?.toString().trim();
+      const salesType = row['Sales Type']?.toUpperCase().trim();
+      let surveyModel = '', orderID = '', numericOT = '';
+
+      if (/^\d+$/.test(receiptNo) && salesType === 'TAKEAWAY') { surveyModel = '6.0'; orderID = receiptNo; numericOT = '2'; }
+      else if (/^\d+$/.test(receiptNo) && salesType === 'DINE-IN') { surveyModel = '6.0'; orderID = receiptNo; numericOT = '1'; }
+      else if (receiptNo.startsWith('K281') && salesType === 'TAKEAWAY') { surveyModel = '4.0'; orderID = receiptNo.slice(-4); numericOT = '2'; }
+      else if (receiptNo.startsWith('K281') && salesType === 'DINE-IN') { surveyModel = '4.0'; orderID = receiptNo.slice(-4); numericOT = '1'; }
+      else if (receiptNo.startsWith('K281') && salesType === 'DELIVERY') { surveyModel = '3.0'; orderID = receiptNo; numericOT = '3'; }
+      else { return null; }
+
+      const date = convertExcelDate(row['Date']);
+      const time = convertExcelTime(row['Time']);
+      const isoDateTime = `${date}T${time}Z`;
+
+      let phoneNumber = row['Sell-to Contact No.']?.toString().trim();
+      if (!phoneNumber.startsWith("91")) {
+        phoneNumber = `91${phoneNumber}`;
+      }
+
+      const data = { "S": storeID, "OI": orderID, "D": date, "TM": time, "DTM": isoDateTime, "TI": orderID, "OT": numericOT, "SM": surveyModel, "PH": phoneNumber };
+      const encodedData = btoa(JSON.stringify(data));
+      return `https://customer.kfc-listens.com/jfe/form/SV_8bHC0noyvM3jPWC?Q_EED=${encodedData}`;
+    }
+
+    document.getElementById("fileInput").addEventListener("change", function() {
+      document.getElementById("generateBtn").disabled = !this.files.length;
+    });
+
+    function processFile() {
+      const file = document.getElementById("fileInput").files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        currentData = XLSX.utils.sheet_to_json(sheet);
+        displayLinks();
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function displayLinks() {
+      const tbody = document.querySelector("#linkTable tbody");
+      tbody.innerHTML = "";
+      currentData.forEach(row => {
+        const link = generateSurveyLink(row);
+        if (!link) return;
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${row['Receipt No.']}</td>
+          <td>${row['Sales Type']}</td>
+          <td><button class="btn btn-success" onclick="window.open('${link}', '_blank')">Open Link</button></td>
+          <td><button class="btn btn-primary" onclick="copyLink('${link}')">Copy</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+      document.getElementById("copyAllBtn").disabled = false;
+      document.getElementById("exportBtn").disabled = false;
+    }
+
+    function copyLink(link) {
+      navigator.clipboard.writeText(link);
+      alert("Link copied!");
+    }
+
+    function copyAllLinks() {
+      const links = [];
+      document.querySelectorAll("#linkTable tbody button.btn-success").forEach(btn => {
+        const onClick = btn.getAttribute("onclick");
+        const url = onClick.match(/'(.*?)'/)[1];
+        links.push(url);
+      });
+      navigator.clipboard.writeText(links.join("\n"));
+      alert("All links copied!");
+    }
+
+    function exportToCSV() {
+      let csv = "Receipt No.,Sales Type,Link\n";
+      currentData.forEach(row => {
+        const link = generateSurveyLink(row);
+        if (link) {
+          csv += `${row['Receipt No.']},${row['Sales Type']},${link}\n`;
+        }
+      });
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "survey_links.csv";
+      a.click();
+    }
+
+    function clearData() {
+      currentData = [];
+      document.querySelector("#linkTable tbody").innerHTML = "";
+      document.getElementById("copyAllBtn").disabled = true;
+      document.getElementById("exportBtn").disabled = true;
+      document.getElementById("generateBtn").disabled = true;
+      document.getElementById("fileInput").value = "";
+    }
+  </script>
+</body>
+</html>
